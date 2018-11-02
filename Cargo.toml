@@ -1,0 +1,6 @@
+[package]
+name = "EffectivenessOfPRStaleBot"
+version = "0.1.0"
+authors = ["Janitha Jayaweera <Janitha.Jayaweera1@T-Mobile.com>"]
+
+[dependencies]
