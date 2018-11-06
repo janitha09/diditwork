@@ -2,6 +2,42 @@ fn main() {
     println!("Hello, world!");
 }
 
+mod my_module {
+    use std::collections::HashMap;
+    pub fn was_there_activity_after_the_warning(activity: &HashMap<&str, &str>) -> bool {
+        match (activity.get("UserName"), activity.get("Message")) {
+            (Some(&"UserName1"), Some(&"Message1")) => false, //no activity mine was the last
+            _ => true,
+        }
+    }
+
+    //I think the liftime is that same as the variable that recieves the value.
+    pub fn get_bot_activity<'a>() -> HashMap<&'a str, &'a str> {
+        let mut most_recent = HashMap::new();
+        most_recent.insert("UserName", "UserName1");
+        most_recent.insert("Message", "Message1");
+        most_recent.insert("Date", "1533743653838");
+        most_recent
+    }
+    pub fn get_immediate_activity_after_bot<'a>() -> HashMap<&'a str, &'a str> {
+        let mut most_recent = HashMap::new();
+        most_recent.insert("UserName", "UserName2");
+        most_recent.insert("Message", "Message2");
+        most_recent.insert("Date", "1533743653838");
+        most_recent
+    }
+}
+
+mod my_activity {
+    #[derive(Debug)]
+    pub struct Activity<'a> {
+        pub user_name: &'a str,
+        pub message: &'a str,
+        pub date: &'a str,
+        //I think a lifetime is needed because I access and assign the fields.
+    }
+}
+
 //struct Activity
 #[cfg(test)]
 mod tests {
@@ -62,7 +98,7 @@ mod tests {
     fn call(number: &str) -> &str {
         match number {
             "798-1364" => {
-                "We're sorry, the call cannot be completed as dialed. 
+                "We're sorry, the call cannot be completed as dialed.
             Please hang up and try again."
             }
             "645-7689" => {
@@ -74,6 +110,8 @@ mod tests {
     }
     #[test]
     fn is_it_more_than_x_days_after_the_warning() {
+        //maybe use a struct like the viking example
+        // https://doc.rust-lang.org/std/collections/struct.HashMap.html
         use std::collections::HashMap;
 
         let mut most_recent = HashMap::new();
@@ -81,6 +119,8 @@ mod tests {
         most_recent.insert("Message", "Message1");
         most_recent.insert("Date", "1533743653838");
 
+        use my_module::*;
+        assert_eq!(was_there_activity_after_the_warning(&most_recent), false);
         use std::time::{SystemTime, UNIX_EPOCH};
         let start = SystemTime::now();
         let since_the_epoch = start
@@ -102,6 +142,7 @@ mod tests {
         println!("activity date {:?} {:?}", activity_date, activity_date_int);
         let time_elapsed = (in_ms - activity_date_int) / 86400 / 1000;
         println!("time elapsed {:?} days", time_elapsed)
+
         // use chrono::offset::{TimeZone, Utc};
         // let utc = Utc;
         // let d1 = Utc::now();
@@ -110,5 +151,85 @@ mod tests {
         // let duration = d2.signed_duration_since(d1);
         // println!("Duration: {:?}", duration);
         // println!("As whole days: {:?}", duration.num_days());
+    }
+
+    #[test]
+    fn test_was_there_activity_after_the_warning() {
+        use std::collections::HashMap;
+
+        let mut most_recent = HashMap::new();
+        most_recent.insert("UserName", "UserName1");
+        most_recent.insert("Message", "Message1");
+        most_recent.insert("Date", "1533743653838");
+
+        use my_module::*;
+        assert_eq!(was_there_activity_after_the_warning(&most_recent), false);
+        //what is the differene in time between the bot activity and the immediate next activity
+        //time between two activities.
+        //find the bots activity
+    }
+    #[test]
+    fn if_there_was_activity_how_long_did_it_take() {
+        use my_module::*;
+        let bot_activity = get_bot_activity();
+        let bot_activity_date = bot_activity.get("Date").unwrap().parse::<i64>().unwrap();
+        assert_eq!(bot_activity_date, 1533743653838);
+        assert_eq!(bot_activity.get("UserName"), Some(&"UserName1"));
+        let immediate_activity_after_bot = get_immediate_activity_after_bot();
+        let immediate_activity_after_bot_date = immediate_activity_after_bot
+            .get("Date")
+            .unwrap()
+            .parse::<i64>()
+            .unwrap();
+        assert_eq!(immediate_activity_after_bot_date, 1533743653838);
+        assert_eq!(
+            immediate_activity_after_bot.get("UserName"),
+            Some(&"UserName2")
+        );
+        assert_eq!(immediate_activity_after_bot_date - bot_activity_date, 0)
+    }
+    // https://docs.rs/elastic_requests/0.20.10/elastic_requests/
+    #[test]
+    fn find_an_activity_in_a_vector_of_activities() {
+        use my_activity::Activity;
+        let activity1 = Activity {
+            user_name: "UserName1",
+            message: "Message1",
+            date: "1533743653838",
+        };
+        assert_eq!(activity1.user_name, "UserName1");
+        let mut activities = Vec::new();
+        activities.push(activity1);
+        assert_eq!(activities.len(), 1);
+
+        assert_eq!("UserName1", activities.iter().next().unwrap().user_name);
+        // https://github.com/rust-lang/rust-by-example/issues/390#issuecomment-69660693
+
+        assert_eq!(
+            "UserName1",
+            activities
+                .iter()
+                .find(|x| (**x).user_name == "UserName1") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+                .unwrap()
+                .user_name
+        );
+        let activity2 = Activity {
+            user_name: "UserName2",
+            message: "Message2",
+            date: "1533743653838",
+        };
+        activities.push(activity2);
+
+        assert_eq!(activities.len(), 2);
+        assert_eq!("UserName1", activities.iter().next().unwrap().user_name);
+
+        assert_eq!(
+            "UserName2",
+            activities
+                .into_iter()
+                .find(|x| x.user_name == "UserName2") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+                .unwrap()
+                .user_name
+        );
     }
 }
