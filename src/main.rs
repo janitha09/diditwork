@@ -28,18 +28,20 @@ mod my_module {
     }
 }
 
-mod my_activity {
-    #[derive(Debug)]
-    pub struct Activity<'a> {
-        pub user_name: &'a str,
-        pub message: &'a str,
-        pub date: &'a str,
-        //I think a lifetime is needed because I access and assign the fields.
-    }
-}
+// mod my_activity {
+//     #[derive(Debug)]
+//     pub struct Activity<'a> {
+//         pub user_name: &'a str,
+//         pub message: &'a str,
+//         pub date: &'a str,
+//         //I think a lifetime is needed because I access and assign the fields.
+//     }
+// }
 
 //struct Activity
+
 #[cfg(test)]
+mod activities;
 mod tests {
     #[test]
     fn it_works() {
@@ -170,49 +172,93 @@ mod tests {
     }
     #[test]
     fn if_there_was_activity_how_long_did_it_take() {
-        use my_module::*;
-        let bot_activity = get_bot_activity();
-        let bot_activity_date = bot_activity.get("Date").unwrap().parse::<i64>().unwrap();
-        assert_eq!(bot_activity_date, 1533743653838);
-        assert_eq!(bot_activity.get("UserName"), Some(&"UserName1"));
-        let immediate_activity_after_bot = get_immediate_activity_after_bot();
-        let immediate_activity_after_bot_date = immediate_activity_after_bot
-            .get("Date")
-            .unwrap()
-            .parse::<i64>()
-            .unwrap();
-        assert_eq!(immediate_activity_after_bot_date, 1533743653838);
-        assert_eq!(
-            immediate_activity_after_bot.get("UserName"),
-            Some(&"UserName2")
-        );
-        assert_eq!(immediate_activity_after_bot_date - bot_activity_date, 0)
-    }
-    // https://docs.rs/elastic_requests/0.20.10/elastic_requests/
-    #[test]
-    fn find_an_activity_in_a_vector_of_activities() {
-        use my_activity::Activity;
+        use activities::Activity;
         let activity1 = Activity {
             user_name: "UserName1",
             message: "Message1",
             date: "1533743653838",
         };
         assert_eq!(activity1.user_name, "UserName1");
-        let mut activities = Vec::new();
-        activities.push(activity1);
+        use activities::Activities;
+        let mut activities = Activities {
+            activities: Vec::new(),
+        };
+        activities.push(Activity {
+            user_name: "UserName1",
+            message: "Message1",
+            date: "1533743653838",
+        });
         assert_eq!(activities.len(), 1);
+        assert_eq!("UserName1", activities.next().user_name);
+        assert_eq!(activities.len(), 1);
+        assert_eq!(false, activities.one_after("UserName2").is_some());
 
-        assert_eq!("UserName1", activities.iter().next().unwrap().user_name);
-        // https://github.com/rust-lang/rust-by-example/issues/390#issuecomment-69660693
+        activities.push(Activity {
+            user_name: "UserName2",
+            message: "Message2",
+            date: "1533743653838",
+        });
 
+        assert_eq!(activities.len(), 2);
+
+        activities.push(Activity {
+            user_name: "UserName2",
+            message: "Message2",
+            date: "1533743653838",
+        });
+        //assumes that the most recent activity has the smaller
         assert_eq!(
             "UserName1",
-            activities
-                .iter()
-                .find(|x| (**x).user_name == "UserName1") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
-                .unwrap()
-                .user_name
+            activities.one_after("UserName2").unwrap().user_name
         );
+        assert_eq!(activities.len(), 3);
+        assert_eq!(activities.get_user_reaction_time("UserName2").unwrap(), 0);
+        // use my_module::*;
+        // let bot_activity = get_bot_activity();
+        // let bot_activity_date = bot_activity.get("Date").unwrap().parse::<i64>().unwrap();
+        // assert_eq!(bot_activity_date, 1533743653838);
+        // assert_eq!(bot_activity.get("UserName"), Some(&"UserName1"));
+        // let immediate_activity_after_bot = get_immediate_activity_after_bot();
+        // let immediate_activity_after_bot_date = immediate_activity_after_bot
+        //     .get("Date")
+        //     .unwrap()
+        //     .parse::<i64>()
+        //     .unwrap();
+        // assert_eq!(immediate_activity_after_bot_date, 1533743653838);
+        // assert_eq!(
+        //     immediate_activity_after_bot.get("UserName"),
+        //     Some(&"UserName2")
+        // );
+        // assert_eq!(immediate_activity_after_bot_date - bot_activity_date, 0)
+    }
+    // https://docs.rs/elastic_requests/0.20.10/elastic_requests/
+    #[test]
+    fn find_an_activity_in_a_vector_of_activities() {
+        use activities::Activity;
+        let activity1 = Activity {
+            user_name: "UserName1",
+            message: "Message1",
+            date: "1533743653838",
+        };
+        assert_eq!(activity1.user_name, "UserName1");
+        use activities::Activities;
+        let mut activities = Activities {
+            activities: Vec::new(),
+        };
+        activities.push(activity1);
+        assert_eq!(activities.len(), 1);
+        assert_eq!("UserName1", activities.next().user_name);
+        assert_eq!(activities.len(), 1);
+        // // https://github.com/rust-lang/rust-by-example/issues/390#issuecomment-69660693
+
+        // assert_eq!(
+        //     "UserName1",
+        //     activities
+        //         .iter()
+        //         .find(|x| (**x).user_name == "UserName1") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+        //         .unwrap()
+        //         .user_name
+        // );
         let activity2 = Activity {
             user_name: "UserName2",
             message: "Message2",
@@ -221,15 +267,95 @@ mod tests {
         activities.push(activity2);
 
         assert_eq!(activities.len(), 2);
-        assert_eq!("UserName1", activities.iter().next().unwrap().user_name);
+        assert_eq!("UserName1", activities.next().user_name);
 
+        // assert_eq!(
+        //     "UserName2",
+        //     activities
+        //         .into_iter() // consumes the vector https://hermanradtke.com/2015/06/22/effectively-using-iterators-in-rust.html
+        //         .find(|ref mut x| x.user_name == "UserName2") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1") this moves why?
+        //         .unwrap()
+        //         .user_name
+        // );
+        // assert_eq!(
+        //     "UserName2",
+        //     activities
+        //         .iter()
+        //         .find(|x| (**x).user_name == "UserName2") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+        //         .unwrap()
+        //         .user_name
+        // );
+        // assert_eq!(activities.len(), 2);
+    }
+    #[test]
+    fn get_the_element_before_the_position_of_the_activity_in_a_vector() {
+        use activities::Activity;
+        let activity1 = Activity {
+            user_name: "UserName1",
+            message: "Message1",
+            date: "1533743653838",
+        };
+        assert_eq!(activity1.user_name, "UserName1");
+        use activities::Activities;
+        let mut activities = Activities {
+            activities: Vec::new(),
+        };
+        activities.push(activity1);
+        assert_eq!(activities.len(), 1);
+        assert_eq!("UserName1", activities.next().user_name);
+        assert_eq!(activities.len(), 1);
+        assert_eq!(false, activities.one_after("UserName2").is_some());
+
+        let activity2 = Activity {
+            user_name: "UserName2",
+            message: "Message2",
+            date: "1533743653838",
+        };
+        activities.push(activity2);
+
+        assert_eq!(activities.len(), 2);
+
+        //     assert_eq!(
+        //         "UserName1",
+        //         activities
+        //             .iter()
+        //             .find(|x| (**x).user_name == "UserName1") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+        //             .unwrap()
+        //             .user_name
+        //     );
+        //     assert_eq!(
+        //         "UserName2",
+        //         activities
+        //             .iter()
+        //             .find(|ref mut x| x.user_name == "UserName2") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
+        //             .unwrap()
+        //             .user_name
+        //     );
+        //     assert_eq!(
+        //         1,
+        //         activities
+        //             .iter()
+        //             .position(|ref mut x| x.user_name == "UserName2")
+        //             .unwrap()
+        //     );
+        //     let index = activities
+        //         .iter()
+        //         .position(|ref mut x| x.user_name == "UserName2")
+        //         .unwrap();
+        //     assert_eq!(activities.len(), 2);
+        //     assert_eq!("UserName1", activities[index - 1].user_name);
+        //do you need position or rposition
+
+        activities.push(Activity {
+            user_name: "UserName2",
+            message: "Message2",
+            date: "1533743653838",
+        });
+        //assumes that the most recent activity has the smaller
         assert_eq!(
-            "UserName2",
-            activities
-                .into_iter()
-                .find(|x| x.user_name == "UserName2") //this is equivalent to .find(|ref mut x| x.user_name == "UserName1")
-                .unwrap()
-                .user_name
+            "UserName1",
+            activities.one_after("UserName2").unwrap().user_name
         );
+        assert_eq!(activities.len(), 3);
     }
 }

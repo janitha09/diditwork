@@ -1,5 +1,5 @@
 [package]
-name = "EffectivenessOfPRStaleBot"
+name = "effectiveness_of_pullrequest_stalebot"
 version = "0.1.0"
 authors = ["Janitha Jayaweera <Janitha.Jayaweera1@T-Mobile.com>"]
 
